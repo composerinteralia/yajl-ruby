@@ -26,9 +26,31 @@
 #include "yajl_alloc.h"
 #include "yajl_buf.h"
 #include "yajl_encode.h"
+#include "yajl_parser.h"
 #include "api/yajl_common.h"
 #include "assert.h"
 #include <string.h>
+
+/* Forward declarations of internal yajl structures for memsize calculation */
+struct yajl_lexer_t {
+    unsigned int lineOff;
+    unsigned int charOff;
+    yajl_lex_error error;
+    yajl_buf buf;
+    unsigned int bufOff;
+    unsigned int bufInUse;
+    unsigned int allowComments;
+    unsigned int validateUTF8;
+    yajl_alloc_funcs * alloc;
+};
+
+struct yajl_buf_t {
+    yajl_buf_state state;
+    unsigned int len;
+    unsigned int used;
+    unsigned char * data;
+    yajl_alloc_funcs * alloc;
+};
 
 #define YAJL_RB_TO_JSON                                   \
  VALUE rb_encoder, cls;                                   \
@@ -326,7 +348,45 @@ void yajl_parser_wrapper_mark(void * wrapper) {
 }
 
 static size_t yajl_parser_wrapper_memsize(const void * wrapper) {
-    return sizeof(yajl_parser_wrapper);
+    const yajl_parser_wrapper * w = wrapper;
+    size_t size = sizeof(yajl_parser_wrapper);
+    
+    if (w && w->parser) {
+        yajl_handle hand = w->parser;
+        
+        /* Add the yajl_handle_t struct itself */
+        size += sizeof(struct yajl_handle_t);
+        
+        /* Add the lexer if present */
+        if (hand->lexer) {
+            size += sizeof(struct yajl_lexer_t);
+            
+            /* Add the lexer's buffer if present */
+            if (hand->lexer->buf) {
+                size += sizeof(struct yajl_buf_t);
+                /* Add the buffer's data if allocated */
+                if (hand->lexer->buf->data && hand->lexer->buf->len > 0) {
+                    size += hand->lexer->buf->len;
+                }
+            }
+        }
+        
+        /* Add the decode buffer if present */
+        if (hand->decodeBuf) {
+            size += sizeof(struct yajl_buf_t);
+            /* Add the buffer's data if allocated */
+            if (hand->decodeBuf->data && hand->decodeBuf->len > 0) {
+                size += hand->decodeBuf->len;
+            }
+        }
+        
+        /* Add the state stack if allocated */
+        if (hand->stateStack.stack && hand->stateStack.size > 0) {
+            size += hand->stateStack.size;
+        }
+    }
+    
+    return size;
 }
 
 const rb_data_type_t yajl_parser_wrapper_type = {
