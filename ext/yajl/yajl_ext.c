@@ -28,6 +28,7 @@
 #include "yajl_encode.h"
 #include "api/yajl_common.h"
 #include "assert.h"
+#include <string.h>
 
 #define YAJL_RB_TO_JSON                                   \
  VALUE rb_encoder, cls;                                   \
@@ -159,9 +160,18 @@ static void yajl_encoder_wrapper_mark(void * wrapper) {
     }
 }
 
+static size_t yajl_encoder_wrapper_memsize(const void * wrapper) {
+    const yajl_encoder_wrapper * w = wrapper;
+    size_t size = sizeof(yajl_encoder_wrapper);
+    if (w && w->indentString) {
+        size += strlen((const char *)w->indentString) + 1;
+    }
+    return size;
+}
+
 const rb_data_type_t yajl_encoder_wrapper_type = {
     "yajl_encoder_wrapper",
-    {yajl_encoder_wrapper_mark, yajl_encoder_wrapper_free, NULL},
+    {yajl_encoder_wrapper_mark, yajl_encoder_wrapper_free, yajl_encoder_wrapper_memsize},
     0, 0, 0
 };
 
@@ -315,9 +325,13 @@ void yajl_parser_wrapper_mark(void * wrapper) {
     }
 }
 
+static size_t yajl_parser_wrapper_memsize(const void * wrapper) {
+    return sizeof(yajl_parser_wrapper);
+}
+
 const rb_data_type_t yajl_parser_wrapper_type = {
     "yajl_parser_wrapper",
-    {yajl_parser_wrapper_mark, yajl_parser_wrapper_free, NULL},
+    {yajl_parser_wrapper_mark, yajl_parser_wrapper_free, yajl_parser_wrapper_memsize},
     0, 0, 0
 };
 
