@@ -4,6 +4,7 @@ benchmark/subjects/contacts.*
 *.o
 *.dylib
 *.bundle
+*.so
 TODO.txt
 tmp/*
 pkg/*
